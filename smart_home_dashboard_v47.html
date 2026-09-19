@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Home Dashboard V47</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Identity Services Library -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom High-Contrast & Tablet Scrollbar Styles */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(71, 85, 105, 1);
+    }
+    /* Pulse glow for live indicator */
+    .pulse-dot {
+      box-shadow: 0 0 8px currentColor;
+    }
+  </style>
+</head>
+<body class="h-full overflow-hidden bg-slate-950 font-sans text-slate-100 select-none">
+
+  <div id="startupOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md p-6 text-center">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col items-center space-y-6">
+      <div class="w-20 h-20 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center text-4xl shadow-inner">
+        🏠
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white mb-2">Smart Home Dashboard</h1>
+        <p class="text-slate-400 text-sm">V47 Continuous Display System</p>
+      </div>
+      <button id="btnStart" onclick="STARTUP.initDashboard()" class="w-full py-4 px-6 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-lg rounded-xl shadow-lg transition-all flex items-center justify-center gap-3">
+        <span>👆 CLICK TO START</span>
+      </button>
+      <p class="text-xs text-slate-500">Tap anywhere to initialize background timers and APIs.</p>
+    </div>
+  </div>
+
+  <div id="nightSaverOverlay" class="fixed inset-0 z-40 hidden flex-col items-center justify-between bg-black p-12 text-center cursor-pointer select-none" onclick="NIGHT_SAVER.wakeDashboard()">
+    <div class="text-slate-700 text-sm tracking-widest uppercase mt-4">Night Saver Mode</div>
+    <div class="flex flex-col items-center justify-center space-y-4 my-auto">
+      <div id="nightSaverClock" class="text-8xl md:text-9xl font-black tracking-tighter text-slate-700 font-mono">00:00</div>
+      <div class="text-slate-600 text-lg md:text-xl font-medium">Tap Screen to Wake</div>
+    </div>
+    <div id="nightSaverWakeInfo" class="text-slate-800 text-xs mb-4">Auto-returns to Night Saver after wake duration</div>
+  </div>
+
+  <div class="h-full flex flex-col justify-between p-3 md:p-4 gap-3 max-w-[1920px] mx-auto">
+
+    <!-- Header Panel -->
+    <header class="bg-slate-900/90 border border-slate-800 rounded-2xl px-5 py-3 flex items-center justify-between shrink-0 shadow-lg">
+      <!-- Left: Clock & Date -->
+      <div class="flex items-center space-x-4">
+        <div id="headerClock" class="text-3xl md:text-4xl font-extrabold tracking-tight font-mono text-white">--:--</div>
+        <div class="border-l border-slate-700 h-8"></div>
+        <div>
+          <div id="headerDate" class="text-xs md:text-sm font-semibold text-slate-300">----/--/--</div>
+          <div id="headerDay" class="text-xs font-medium text-slate-500 uppercase tracking-wider">---</div>
+        </div>
+      </div>
+
+      <!-- Center: Mini Weather Badge -->
+      <div class="hidden sm:flex items-center gap-3 bg-slate-950/60 border border-slate-800/80 px-4 py-1.5 rounded-xl">
+        <span id="miniWeatherIcon" class="text-2xl">🌤️</span>
+        <div class="text-left">
+          <div class="flex items-center gap-1">
+            <span id="miniWeatherTemp" class="text-base font-bold text-white">--°C</span>
+            <span id="miniWeatherStation" class="text-xs text-slate-400 max-w-[120px] truncate">(Station)</span>
+          </div>
+          <div id="miniWeatherWarningSummary" class="text-xs text-amber-400 font-medium truncate max-w-[180px]">No Warnings</div>
+        </div>
+      </div>
+
+      <!-- Right: Actions & Auth Status -->
+      <div class="flex items-center space-x-2 md:space-x-3">
+        <div id="authStatusBtnContainer">
+          <button id="btnGoogleAuth" onclick="GOOGLE_AUTH.handleAuthClick()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold rounded-xl text-slate-200 transition-colors flex items-center gap-2">
+            <span id="authDot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span id="authBtnText">Google Auth</span>
+          </button>
+        </div>
+
+        <button onclick="SETTINGS.openSettings()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-colors text-lg flex items-center justify-center" title="Settings">
+          ⚙️
+        </button>
+
+        <button onclick="UI.toggleFullscreen()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl transition-colors text-lg flex items-center justify-center" title="Fullscreen">
+          ⛶
+        </button>
+      </div>
+    </header>
+
+    <main class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 min-h-0 overflow-hidden">
+
+      <!-- Panel 1: Weather & Warnings -->
+      <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between overflow-hidden shadow-lg">
+        <div>
+          <!-- Card Header -->
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🌡️</span>
+              <h2 class="font-bold text-slate-200 text-sm tracking-wide uppercase">Weather</h2>
+            </div>
+            <span id="weatherUpdateTime" class="text-[10px] font-mono text-slate-500">Updated: --:--</span>
+          </div>
+
+          <!-- Main Weather Info -->
+          <div class="flex items-center justify-between mb-4 bg-slate-950/40 p-3 rounded-xl border border-slate-800/50">
+            <div class="flex items-center gap-3">
+              <span id="weatherMainIcon" class="text-4xl md:text-5xl">🌤️</span>
+              <div>
+                <div id="weatherMainTemp" class="text-3xl md:text-4xl font-black text-white tracking-tight">--°C</div>
+                <div id="weatherStationName" class="text-xs text-slate-400 font-medium">Hong Kong Observatory</div>
+              </div>
+            </div>
+            <div class="text-right text-xs space-y-1 text-slate-300">
+              <div>Feels Like: <span id="weatherFeelsLike" class="font-bold text-white">--°C</span></div>
+              <div>Humidity: <span id="weatherHumidity" class="font-bold text-cyan-400">--%</span></div>
+              <div>Wind: <span id="weatherWind" class="font-bold text-slate-200">-- km/h</span></div>
+            </div>
+          </div>
+
+          <!-- Weather Warning Section -->
+          <div>
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Weather Warnings</span>
+              <span id="warningCountBadge" class="px-1.5 py-0.5 text-[10px] bg-slate-800 text-slate-400 rounded-md font-mono">0</span>
+            </div>
+            <div id="weatherWarningsList" class="space-y-2 max-h-[140px] md:max-h-[160px] overflow-y-auto pr-1">
+              <div class="text-xs text-slate-500 italic p-2 bg-slate-950/30 rounded-lg border border-slate-800/40 text-center">
+                Loading warning data...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rain / Air Quality Tip -->
+        <div id="weatherTip" class="mt-2 text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/60 flex items-center gap-2">
+          <span>ℹ️</span>
+          <span class="truncate" id="weatherTipText">HKO Observatory live data synced.</span>
+        </div>
+      </section>
+
+      <!-- Panel 2: Schedule (Google Calendar) -->
+      <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between overflow-hidden shadow-lg">
+        <div class="flex flex-col h-full overflow-hidden">
+          <!-- Card Header -->
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-3 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">📅</span>
+              <h2 class="font-bold text-slate-200 text-sm tracking-wide uppercase">Today's Schedule</h2>
+            </div>
+            <span id="scheduleStatusText" class="text-[10px] font-mono text-slate-500">Live Sync</span>
+          </div>
+
+          <!-- Schedule Event List Container -->
+          <div id="scheduleList" class="flex-1 overflow-y-auto space-y-2 pr-1">
+            <div class="text-xs text-slate-500 text-center py-8">
+              Sign in with Google to display today's events.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 3: Home To-Do (Google Tasks) -->
+      <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between overflow-hidden shadow-lg">
+        <div class="flex flex-col h-full overflow-hidden">
+          <!-- Card Header -->
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-3 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">☑️</span>
+              <h2 class="font-bold text-slate-200 text-sm tracking-wide uppercase">Home To-Do</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="tasksCountBadge" class="px-2 py-0.5 text-xs bg-blue-950/80 border border-blue-800/60 text-blue-300 font-bold rounded-full">0</span>
+              <button onclick="GOOGLE_TASKS.fetchTasks()" class="text-xs text-slate-400 hover:text-white p-1" title="Refresh Tasks">🔄</button>
+            </div>
+          </div>
+
+          <!-- To-Do List Container -->
+          <div id="tasksList" class="flex-1 overflow-y-auto space-y-2 pr-1">
+            <div class="text-xs text-slate-500 text-center py-8">
+              Sign in with Google to display home tasks.
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Banner: KMB Bus ETA -->
+    <footer class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 md:px-5 md:py-3.5 flex flex-col sm:flex-row items-center justify-between shrink-0 shadow-lg gap-3">
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <div class="w-10 h-10 bg-red-600/20 border border-red-500/40 text-red-400 rounded-xl flex items-center justify-center font-black text-xl shrink-0">
+          🚌
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="kmbRouteBadge" class="px-2 py-0.5 bg-red-600 text-white font-black text-sm rounded-lg tracking-wider">273B</span>
+            <span id="kmbStopKeyword" class="font-bold text-slate-200 text-sm">御景峰</span>
+          </div>
+          <div class="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+            <span id="kmbLiveDot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
+            <span id="kmbStatusText">Live ETA</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ETA Display Chips -->
+      <div id="kmbEtaContainer" class="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-start sm:justify-end overflow-x-auto py-1">
+        <div class="px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-center min-w-[90px]">
+          <div class="text-[10px] text-slate-500 uppercase font-semibold">ETA 1</div>
+          <div class="text-lg font-black text-emerald-400">-- min</div>
+        </div>
+        <div class="px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-center min-w-[90px]">
+          <div class="text-[10px] text-slate-500 uppercase font-semibold">ETA 2</div>
+          <div class="text-lg font-black text-slate-200">-- min</div>
+        </div>
+        <div class="px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-center min-w-[90px]">
+          <div class="text-[10px] text-slate-500 uppercase font-semibold">ETA 3</div>
+          <div class="text-lg font-black text-slate-400">-- min</div>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>⚙️</span> Settings
+        </h3>
+        <button onclick="SETTINGS.closeSettings()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-4 overflow-y-auto pr-1 text-sm flex-1">
+        <!-- Weather Station -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Weather Station</label>
+          <input type="text" id="settingWeatherStation" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g. Hong Kong Observatory or Sha Tin">
+        </div>
+
+        <!-- Night Start / Night End -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Night Start (Hour 0-23)</label>
+            <input type="number" min="0" max="23" id="settingNightStart" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Night End (Hour 0-23)</label>
+            <input type="number" min="0" max="23" id="settingNightEnd" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <!-- Wake Time (Min) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Wake Time (Minutes on Tap)</label>
+          <input type="number" min="1" max="60" id="settingWakeTime" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <!-- Bus Route & Stop Keyword -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Bus Route</label>
+            <input type="text" id="settingBusRoute" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g. 273B">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Stop Keyword</label>
+            <input type="text" id="settingStopKeyword" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g. 御景峰">
+          </div>
+        </div>
+
+        <!-- Google OAuth Client ID -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Google OAuth Client ID</label>
+          <input type="text" id="settingGoogleClientId" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-xs focus:outline-none focus:border-blue-500" placeholder="xxxxxx.apps.googleusercontent.com">
+          <p class="text-[11px] text-slate-500 mt-1">Required for Google Calendar & Tasks sync.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 border-t border-slate-800 pt-4 mt-4">
+        <button onclick="SETTINGS.closeSettings()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs">
+          Cancel
+        </button>
+        <button onclick="SETTINGS.saveSettings()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs">
+          Save & Reload
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Code Section -->
+  <script>
+    /**
+     * CONFIG - Handles Dashboard Settings stored in localStorage
+     */
+    const CONFIG = {
+      STORAGE_KEY: 'SMART_HOME_V47_SETTINGS',
+      defaults: {
+        weatherStation: 'Hong Kong Observatory',
+        nightStart: 23,
+        nightEnd: 6,
+        wakeTime: 5,
+        busRoute: '273B',
+        stopKeyword: '御景峰',
+        googleClientId: ''
+      },
+      current: {},
+
+      load() {
+        try {
+          const stored = localStorage.getItem(this.STORAGE_KEY);
+          if (stored) {
+            this.current = { ...this.defaults, ...JSON.parse(stored) };
+          } else {
+            this.current = { ...this.defaults };
+          }
+        } catch (e) {
+          console.warn('Failed to load settings from localStorage, using defaults.', e);
+          this.current = { ...this.defaults };
+        }
+      },
+
+      save(newSettings) {
+        try {
+          this.current = { ...this.current, ...newSettings };
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.current));
+        } catch (e) {
+          console.error('Failed to save settings to localStorage.', e);
+        }
+      }
+    };
+
+    /**
+     * STATE - Global Application State
+     */
+    const STATE = {
+      isStarted: false,
+      nightSaverActive: false,
+      temporaryWakeUntil: null,
+      accessToken: null,
+      tokenExpiresAt: 0,
+      tasks: [],
+      schedule: [],
+      weather: null,
+      warnings: [],
+      kmbEtas: [],
+      tokenClient: null
+    };
+
+    /**
+     * STARTUP - Handles browser interaction overlay and bootstrapping
+     */
+    const STARTUP = {
+      initDashboard() {
+        try {
+          STATE.isStarted = true;
+          CONFIG.load();
+          
+          const overlay = document.getElementById('startupOverlay');
+          if (overlay) overlay.classList.add('hidden');
+
+          // Initialize modules safely
+          CLOCK.start();
+          WEATHER.start();
+          KMB.start();
+          GOOGLE_AUTH.init();
+
+          console.log('Smart Home Dashboard V47 Started Successfully.');
+        } catch (err) {
+          console.error('Error during startup initialization:', err);
+        }
+      }
+    };
+
+    /**
+     * CLOCK - Handles main clock, header date display, and Night Saver triggering
+     */
+    const CLOCK = {
+      timer: null,
+
+      start() {
+        this.updateClock();
+        this.timer = setInterval(() => this.updateClock(), 1000);
+      },
+
+      updateClock() {
+        try {
+          const now = new Date();
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const timeStr = `${hours}:${minutes}`;
+
+          // Update header clock
+          const headerClock = document.getElementById('headerClock');
+          if (headerClock) headerClock.textContent = timeStr;
+
+          // Update Night Saver clock
+          const nightSaverClock = document.getElementById('nightSaverClock');
+          if (nightSaverClock) nightSaverClock.textContent = timeStr;
+
+          // Update header date & day
+          const headerDate = document.getElementById('headerDate');
+          const headerDay = document.getElementById('headerDay');
+          if (headerDate) {
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            headerDate.textContent = `${year}/${month}/${day}`;
+          }
+          if (headerDay) {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            headerDay.textContent = days[now.getDay()];
+          }
+
+          // Check Night Saver status
+          NIGHT_SAVER.checkNightSaver(now);
+        } catch (err) {
+          console.error('Error updating clock:', err);
+        }
+      }
+    };
+
+    /**
+     * WEATHER - Fetches live weather report & warnings from Hong Kong Observatory (HKO)
+     */
+    const WEATHER = {
+      timer: null,
+
+      start() {
+        this.fetchWeather();
+        this.fetchWarnings();
+        // Refresh every 10 minutes
+        this.timer = setInterval(() => {
+          this.fetchWeather();
+          this.fetchWarnings();
+        }, 600000);
+      },
+
+      async fetchWeather() {
+        try {
+          // HKO Regional Weather API
+          const response = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
+          if (!response.ok) throw new Error(`HKO API HTTP ${response.status}`);
+          const data = await response.json();
+
+          this.renderWeather(data);
+        } catch (err) {
+          console.error('Weather fetch failed:', err);
+          this.renderWeatherFallback();
+        }
+      },
+
+      async fetchWarnings() {
+        try {
+          // HKO Weather Warning Summary API
+          const response = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
+          if (!response.ok) throw new Error(`HKO Warning API HTTP ${response.status}`);
+          const data = await response.json();
+
+          this.renderWarnings(data);
+        } catch (err) {
+          console.error('Weather warnings fetch failed:', err);
+          this.renderWarningsFallback();
+        }
+      },
+
+      renderWeather(data) {
+        try {
+          const targetStation = CONFIG.current.weatherStation || 'Hong Kong Observatory';
+          let stationTemp = null;
+
+          if (data.temperature && Array.isArray(data.temperature.data)) {
+            const matched = data.temperature.data.find(s => s.place.toLowerCase().includes(targetStation.toLowerCase()));
+            if (matched) {
+              stationTemp = matched.value;
+            } else if (data.temperature.data.length > 0) {
+              stationTemp = data.temperature.data[0].value;
+            }
+          }
+
+          const humidity = (data.humidity && data.humidity.data && data.humidity.data[0]) ? data.humidity.data[0].value : '--';
+          
+          // UI Updates
+          const mainTempEl = document.getElementById('weatherMainTemp');
+          const miniTempEl = document.getElementById('miniWeatherTemp');
+          const stationNameEl = document.getElementById('weatherStationName');
+          const miniStationEl = document.getElementById('miniWeatherStation');
+          const humidityEl = document.getElementById('weatherHumidity');
+          const feelsLikeEl = document.getElementById('weatherFeelsLike');
+          const updateTimeEl = document.getElementById('weatherUpdateTime');
+
+          if (mainTempEl) mainTempEl.textContent = stationTemp !== null ? `${stationTemp}°C` : '--°C';
+          if (miniTempEl) miniTempEl.textContent = stationTemp !== null ? `${stationTemp}°C` : '--°C';
+          if (stationNameEl) stationNameEl.textContent = targetStation;
+          if (miniStationEl) miniStationEl.textContent = `(${targetStation})`;
+          if (humidityEl) humidityEl.textContent = `${humidity}%`;
+          if (feelsLikeEl) feelsLikeEl.textContent = stationTemp !== null ? `${stationTemp}°C` : '--°C';
+
+          if (updateTimeEl) {
+            const now = new Date();
+            updateTimeEl.textContent = `Updated: ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+          }
+        } catch (err) {
+          console.error('Error rendering weather:', err);
+        }
+      },
+
+      renderWeatherFallback() {
+        const mainTempEl = document.getElementById('weatherMainTemp');
+        const stationNameEl = document.getElementById('weatherStationName');
+        if (mainTempEl) mainTempEl.textContent = '--°C';
+        if (stationNameEl) stationNameEl.textContent = 'Weather Unavailable';
+      },
+
+      renderWarnings(data) {
+        try {
+          const warningsListEl = document.getElementById('weatherWarningsList');
+          const warningCountBadge = document.getElementById('warningCountBadge');
+          const miniWarningSummary = document.getElementById('miniWeatherWarningSummary');
+
+          if (!warningsListEl) return;
+
+          const warningKeys = Object.keys(data || {});
+          
+          if (warningKeys.length === 0) {
+            warningsListEl.innerHTML = `
+              <div class="text-xs text-emerald-400 p-2.5 bg-emerald-950/20 border border-emerald-900/40 rounded-xl flex items-center gap-2">
+                <span>✅</span>
+                <span class="font-medium">No Active Weather Warnings</span>
+              </div>
+            `;
+            if (warningCountBadge) warningCountBadge.textContent = '0';
+            if (miniWarningSummary) miniWarningSummary.textContent = 'No Warnings';
+            return;
+          }
+
+          let itemsHtml = '';
+          let count = 0;
+
+          warningKeys.forEach(code => {
+            const warningObj = data[code];
+            if (warningObj) {
+              count++;
+              const info = this.getWarningMeta(code, warningObj.name);
+              itemsHtml += `
+                <div class="text-xs ${info.bgColor} ${info.borderColor} border p-2.5 rounded-xl flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">${info.icon}</span>
+                    <span class="font-bold ${info.textColor}">${warningObj.name || info.label}</span>
+                  </div>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-900/60 text-slate-300 font-mono">HKO</span>
+                </div>
+              `;
+            }
+          });
+
+          warningsListEl.innerHTML = itemsHtml;
+          if (warningCountBadge) warningCountBadge.textContent = count.toString();
+          if (miniWarningSummary) miniWarningSummary.textContent = `${count} Warning(s) Active`;
+
+        } catch (err) {
+          console.error('Error rendering weather warnings:', err);
+          this.renderWarningsFallback();
+        }
+      },
+
+      renderWarningsFallback() {
+        const warningsListEl = document.getElementById('weatherWarningsList');
+        if (warningsListEl) {
+          warningsListEl.innerHTML = `
+            <div class="text-xs text-slate-500 p-2 bg-slate-950/40 rounded-lg text-center">
+              Weather Warnings Unavailable
+            </div>
+          `;
+        }
+      },
+
+      getWarningMeta(code, name = '') {
+        const nameUpper = name.toUpperCase();
+        if (code.includes('WRAIN') || nameUpper.includes('RAIN')) {
+          return { icon: '☔', label: 'Rainstorm Warning', bgColor: 'bg-blue-950/40', borderColor: 'border-blue-800/60', textColor: 'text-blue-300' };
+        }
+        if (code.includes('WHOT') || nameUpper.includes('HOT')) {
+          return { icon: '🌡️', label: 'Very Hot Weather', bgColor: 'bg-amber-950/40', borderColor: 'border-amber-800/60', textColor: 'text-amber-300' };
+        }
+        if (code.includes('WCOLD') || nameUpper.includes('COLD')) {
+          return { icon: '❄️', label: 'Cold Weather', bgColor: 'bg-cyan-950/40', borderColor: 'border-cyan-800/60', textColor: 'text-cyan-300' };
+        }
+        if (code.includes('WTS') || nameUpper.includes('THUNDER')) {
+          return { icon: '⛈️', label: 'Thunderstorm Warning', bgColor: 'bg-purple-950/40', borderColor: 'border-purple-800/60', textColor: 'text-purple-300' };
+        }
+        if (code.includes('TC') || nameUpper.includes('CYCLONE') || nameUpper.includes('TYPHOON')) {
+          return { icon: '🌀', label: 'Tropical Cyclone', bgColor: 'bg-red-950/40', borderColor: 'border-red-800/60', textColor: 'text-red-300' };
+        }
+        if (code.includes('WSTRONG') || nameUpper.includes('WIND')) {
+          return { icon: '🌬️', label: 'Strong Wind', bgColor: 'bg-slate-900', borderColor: 'border-slate-700', textColor: 'text-slate-200' };
+        }
+        if (code.includes('WFIR') || nameUpper.includes('FIRE')) {
+          return { icon: '🔥', label: 'Fire Danger', bgColor: 'bg-orange-950/40', borderColor: 'border-orange-800/60', textColor: 'text-orange-300' };
+        }
+        return { icon: '⚠️', label: 'Weather Warning', bgColor: 'bg-amber-950/30', borderColor: 'border-amber-800/50', textColor: 'text-amber-200' };
+      }
+    };
+
+    /**
+     * GOOGLE_AUTH - Manages Google Identity Services OAuth integration
+     */
+    const GOOGLE_AUTH = {
+      init() {
+        try {
+          if (!CONFIG.current.googleClientId) {
+            this.updateAuthUI(false, 'No Client ID');
+            return;
+          }
+
+          if (window.google && window.google.accounts) {
+            STATE.tokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: CONFIG.current.googleClientId,
+              scope: 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.readonly',
+              callback: (response) => {
+                if (response.access_token) {
+                  STATE.accessToken = response.access_token;
+                  STATE.tokenExpiresAt = Date.now() + (response.expires_in * 1000);
+                  this.updateAuthUI(true, 'Connected');
+                  GOOGLE_TASKS.fetchTasks();
+                  SCHEDULE.fetchSchedule();
+                } else if (response.error) {
+                  console.error('OAuth Response Error:', response);
+                  this.updateAuthUI(false, 'Auth Failed');
+                }
+              }
+            });
+            this.updateAuthUI(false, 'Sign In Required');
+          } else {
+            console.warn('Google Identity Services SDK not loaded.');
+            this.updateAuthUI(false, 'SDK Unloaded');
+          }
+        } catch (err) {
+          console.error('Error initializing Google Auth:', err);
+          this.updateAuthUI(false, 'Auth Error');
+        }
+      },
+
+      handleAuthClick() {
+        if (!CONFIG.current.googleClientId) {
+          SETTINGS.openSettings();
+          alert('Please enter a valid Google OAuth Client ID in Settings first.');
+          return;
+        }
+
+        if (STATE.tokenClient) {
+          STATE.tokenClient.requestAccessToken();
+        } else {
+          this.init();
+        }
+      },
+
+      updateAuthUI(isConnected, text) {
+        const authDot = document.getElementById('authDot');
+        const authBtnText = document.getElementById('authBtnText');
+        if (authDot) {
+          authDot.className = `w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-rose-500'}`;
+        }
+        if (authBtnText) {
+          authBtnText.textContent = text || (isConnected ? 'Connected' : 'Sign In');
+        }
+      }
+    };
+
+    /**
+     * SCHEDULE - Fetches and renders Google Calendar events for the current day
+     */
+    const SCHEDULE = {
+      async fetchSchedule() {
+        const listEl = document.getElementById('scheduleList');
+        const statusEl = document.getElementById('scheduleStatusText');
+
+        if (!STATE.accessToken || Date.now() >= STATE.tokenExpiresAt) {
+          if (listEl) {
+            listEl.innerHTML = `
+              <div class="flex flex-col items-center justify-center h-full py-8 text-center space-y-3">
+                <p class="text-xs text-slate-400">Google Calendar connection required.</p>
+                <button onclick="GOOGLE_AUTH.handleAuthClick()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all">
+                  Sign in with Google
+                </button>
+              </div>
+            `;
+          }
+          if (statusEl) statusEl.textContent = 'Disconnected';
+          return;
+        }
+
+        try {
+          const now = new Date();
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+          const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+
+          const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(startOfDay)}&timeMax=${encodeURIComponent(endOfDay)}&singleEvents=true&orderBy=startTime`;
+
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${STATE.accessToken}` }
+          });
+
+          if (!response.ok) throw new Error(`Calendar API HTTP ${response.status}`);
+          const data = await response.json();
+
+          this.renderSchedule(data.items || []);
+          if (statusEl) statusEl.textContent = 'Synced';
+        } catch (err) {
+          console.error('Schedule fetch failed:', err);
+          if (listEl) {
+            listEl.innerHTML = `
+              <div class="text-xs text-slate-500 text-center py-8">
+                Calendar unavailable
+              </div>
+            `;
+          }
+          if (statusEl) statusEl.textContent = 'Error';
+        }
+      },
+
+      renderSchedule(events) {
+        const listEl = document.getElementById('scheduleList');
+        if (!listEl) return;
+
+        if (events.length === 0) {
+          listEl.innerHTML = `
+            <div class="text-xs text-slate-500 text-center py-10 italic">
+              No Schedule Today
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        events.forEach(evt => {
+          let timeDisplay = 'All Day';
+          if (evt.start && evt.start.dateTime) {
+            const dt = new Date(evt.start.dateTime);
+            timeDisplay = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+          }
+
+          html += `
+            <div class="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <span class="px-2 py-1 bg-slate-800 text-blue-400 font-mono font-bold text-xs rounded-lg shrink-0">${timeDisplay}</span>
+                <div class="truncate">
+                  <div class="text-xs font-bold text-slate-100 truncate">${evt.summary || 'Untitled Event'}</div>
+                  ${evt.location ? `<div class="text-[10px] text-slate-400 truncate">📍 ${evt.location}</div>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        listEl.innerHTML = html;
+      }
+    };
+
+    /**
+     * GOOGLE_TASKS - Handles Google Tasks API integration with Optimistic UI updates
+     */
+    const GOOGLE_TASKS = {
+      async fetchTasks() {
+        const listEl = document.getElementById('tasksList');
+        const badgeEl = document.getElementById('tasksCountBadge');
+
+        if (!STATE.accessToken || Date.now() >= STATE.tokenExpiresAt) {
+          if (listEl) {
+            listEl.innerHTML = `
+              <div class="flex flex-col items-center justify-center h-full py-8 text-center space-y-3">
+                <p class="text-xs text-slate-400">Google Tasks connection required.</p>
+                <button onclick="GOOGLE_AUTH.handleAuthClick()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all">
+                  Connect Google Tasks
+                </button>
+              </div>
+            `;
+          }
+          if (badgeEl) badgeEl.textContent = '0';
+          return;
+        }
+
+        try {
+          const url = 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=false';
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${STATE.accessToken}` }
+          });
+
+          if (!response.ok) throw new Error(`Tasks API HTTP ${response.status}`);
+          const data = await response.json();
+
+          STATE.tasks = data.items || [];
+          this.renderTasks(STATE.tasks);
+        } catch (err) {
+          console.error('Fetch tasks failed:', err);
+          if (listEl) {
+            listEl.innerHTML = `
+              <div class="text-xs text-slate-500 text-center py-8">
+                Tasks unavailable
+              </div>
+            `;
+          }
+        }
+      },
+
+      renderTasks(tasks) {
+        const listEl = document.getElementById('tasksList');
+        const badgeEl = document.getElementById('tasksCountBadge');
+        if (!listEl) return;
+
+        const activeTasks = tasks.filter(t => t.status === 'needsAction');
+        if (badgeEl) badgeEl.textContent = activeTasks.length.toString();
+
+        if (activeTasks.length === 0) {
+          listEl.innerHTML = `
+            <div class="text-xs text-slate-500 text-center py-10 italic">
+              No Active Tasks
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        activeTasks.forEach(task => {
+          html += `
+            <div id="task-item-${task.id}" class="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between transition-all">
+              <label class="flex items-center gap-3 w-full cursor-pointer">
+                <input type="checkbox" onchange="GOOGLE_TASKS.toggleTask('${task.id}', this.checked)" class="w-4 h-4 rounded border-slate-700 text-blue-600 focus:ring-0 bg-slate-900 cursor-pointer">
+                <span class="text-xs font-semibold text-slate-200 tracking-wide">${this.escapeHtml(task.title || 'Untitled Task')}</span>
+              </label>
+            </div>
+          `;
+        });
+
+        listEl.innerHTML = html;
+      },
+
+      async toggleTask(taskId, isChecked) {
+        const taskCard = document.getElementById(`task-item-${taskId}`);
+        if (!taskCard) return;
+
+        // Optimistic UI update
+        if (isChecked) {
+          taskCard.classList.add('opacity-40', 'line-through');
+        } else {
+          taskCard.classList.remove('opacity-40', 'line-through');
+        }
+
+        try {
+          const newStatus = isChecked ? 'completed' : 'needsAction';
+          const url = `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${taskId}`;
+          
+          const response = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${STATE.accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus })
+          });
+
+          if (!response.ok) throw new Error(`Task patch HTTP ${response.status}`);
+
+          // Remove completed task after short delay
+          setTimeout(() => {
+            this.fetchTasks();
+          }, 800);
+
+        } catch (err) {
+          console.error('Optimistic UI Rollback: Task toggle failed', err);
+          // Revert Optimistic UI
+          if (taskCard) {
+            taskCard.classList.remove('opacity-40', 'line-through');
+            const checkbox = taskCard.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = !isChecked;
+          }
+          alert('Failed to sync task state with Google Tasks API.');
+        }
+      },
+
+      escapeHtml(str) {
+        return str.replace(/[&<>"']/g, function(m) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+      }
+    };
+
+    /**
+     * KMB - Fetches live bus arrival ETAs from KMB Open API
+     */
+    const KMB = {
+      timer: null,
+
+      start() {
+        this.fetchEta();
+        // Refresh every 30 seconds
+        this.timer = setInterval(() => this.fetchEta(), 30000);
+      },
+
+      async fetchEta() {
+        try {
+          const route = CONFIG.current.busRoute || '273B';
+          const keyword = CONFIG.current.stopKeyword || '御景峰';
+
+          const routeBadge = document.getElementById('kmbRouteBadge');
+          const stopKw = document.getElementById('kmbStopKeyword');
+          if (routeBadge) routeBadge.textContent = route;
+          if (stopKw) stopKw.textContent = keyword;
+
+          // Fetch route ETA list directly
+          const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${encodeURIComponent(route)}/1`);
+          if (!response.ok) throw new Error(`KMB API HTTP ${response.status}`);
+          const data = await response.json();
+
+          if (!data.data || !Array.isArray(data.data)) throw new Error('Invalid KMB API payload');
+
+          // Process and filter ETAs matching the stop keyword or return upcoming top 3
+          this.renderEta(data.data, keyword);
+        } catch (err) {
+          console.error('KMB ETA fetch error:', err);
+          this.renderEtaFallback();
+        }
+      },
+
+      renderEta(etaItems, keyword) {
+        try {
+          const container = document.getElementById('kmbEtaContainer');
+          if (!container) return;
+
+          const now = new Date();
+          // Filter items with valid ETA
+          const validEtas = etaItems
+            .filter(item => item.eta && item.eta.length > 0)
+            .map(item => {
+              const etaDate = new Date(item.eta);
+              const diffMin = Math.max(0, Math.round((etaDate - now) / 60000));
+              return { ...item, diffMin };
+            })
+            .sort((a, b) => a.diffMin - b.diffMin)
+            .slice(0, 3);
+
+          if (validEtas.length === 0) {
+            container.innerHTML = `
+              <div class="text-xs text-slate-500 font-medium px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
+                No Service / No Upcoming Buses
+              </div>
+            `;
+            return;
+          }
+
+          let html = '';
+          validEtas.forEach((item, index) => {
+            const isFirst = index === 0;
+            const timeColor = isFirst ? 'text-emerald-400 font-extrabold' : 'text-slate-200';
+            html += `
+              <div class="px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-center min-w-[90px]">
+                <div class="text-[10px] text-slate-500 uppercase font-semibold">ETA ${index + 1}</div>
+                <div class="text-lg ${timeColor}">${item.diffMin} min</div>
+              </div>
+            `;
+          });
+
+          container.innerHTML = html;
+        } catch (err) {
+          console.error('Error rendering KMB ETA:', err);
+          this.renderEtaFallback();
+        }
+      },
+
+      renderEtaFallback() {
+        const container = document.getElementById('kmbEtaContainer');
+        if (container) {
+          container.innerHTML = `
+            <div class="text-xs text-slate-500 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
+              ETA Unavailable
+            </div>
+          `;
+        }
+      }
+    };
+
+    /**
+     * NIGHT_SAVER - Manages dark hours dimming & tap-to-wake logic
+     */
+    const NIGHT_SAVER = {
+      checkNightSaver(nowDate) {
+        try {
+          const currentHour = nowDate.getHours();
+          const start = parseInt(CONFIG.current.nightStart, 10);
+          const end = parseInt(CONFIG.current.nightEnd, 10);
+
+          let isNight = false;
+          if (start > end) {
+            // Night spans across midnight (e.g., 23:00 to 06:00)
+            isNight = currentHour >= start || currentHour < end;
+          } else {
+            // Night within same day
+            isNight = currentHour >= start && currentHour < end;
+          }
+
+          // Check if temporary wake is active
+          if (STATE.temporaryWakeUntil && Date.now() < STATE.temporaryWakeUntil) {
+            this.hideOverlay();
+            return;
+          }
+
+          if (isNight) {
+            this.showOverlay();
+          } else {
+            this.hideOverlay();
+          }
+        } catch (err) {
+          console.error('Error checking night saver:', err);
+        }
+      },
+
+      showOverlay() {
+        const overlay = document.getElementById('nightSaverOverlay');
+        if (overlay && overlay.classList.contains('hidden')) {
+          overlay.classList.remove('hidden');
+          overlay.classList.add('flex');
+          STATE.nightSaverActive = true;
+        }
+      },
+
+      hideOverlay() {
+        const overlay = document.getElementById('nightSaverOverlay');
+        if (overlay && !overlay.classList.contains('hidden')) {
+          overlay.classList.add('hidden');
+          overlay.classList.remove('flex');
+          STATE.nightSaverActive = false;
+        }
+      },
+
+      wakeDashboard() {
+        try {
+          const wakeMins = parseInt(CONFIG.current.wakeTime, 10) || 5;
+          STATE.temporaryWakeUntil = Date.now() + (wakeMins * 60 * 1000);
+          this.hideOverlay();
+
+          // Refresh Dashboard state upon tap to wake
+          WEATHER.fetchWeather();
+          KMB.fetchEta();
+          if (STATE.accessToken) {
+            GOOGLE_TASKS.fetchTasks();
+            SCHEDULE.fetchSchedule();
+          }
+        } catch (err) {
+          console.error('Error in wakeDashboard:', err);
+        }
+      }
+    };
+
+    /**
+     * SETTINGS - Handles loading, editing, and saving settings modal inputs
+     */
+    const SETTINGS = {
+      openSettings() {
+        CONFIG.load();
+        document.getElementById('settingWeatherStation').value = CONFIG.current.weatherStation;
+        document.getElementById('settingNightStart').value = CONFIG.current.nightStart;
+        document.getElementById('settingNightEnd').value = CONFIG.current.nightEnd;
+        document.getElementById('settingWakeTime').value = CONFIG.current.wakeTime;
+        document.getElementById('settingBusRoute').value = CONFIG.current.busRoute;
+        document.getElementById('settingStopKeyword').value = CONFIG.current.stopKeyword;
+        document.getElementById('settingGoogleClientId').value = CONFIG.current.googleClientId;
+
+        const modal = document.getElementById('settingsModal');
+        if (modal) modal.classList.remove('hidden');
+      },
+
+      closeSettings() {
+        const modal = document.getElementById('settingsModal');
+        if (modal) modal.classList.add('hidden');
+      },
+
+      saveSettings() {
+        try {
+          const updated = {
+            weatherStation: document.getElementById('settingWeatherStation').value.trim(),
+            nightStart: parseInt(document.getElementById('settingNightStart').value, 10) || 23,
+            nightEnd: parseInt(document.getElementById('settingNightEnd').value, 10) || 6,
+            wakeTime: parseInt(document.getElementById('settingWakeTime').value, 10) || 5,
+            busRoute: document.getElementById('settingBusRoute').value.trim(),
+            stopKeyword: document.getElementById('settingStopKeyword').value.trim(),
+            googleClientId: document.getElementById('settingGoogleClientId').value.trim()
+          };
+
+          CONFIG.save(updated);
+          this.closeSettings();
+
+          // Reload UI components with new configuration
+          WEATHER.fetchWeather();
+          KMB.fetchEta();
+          GOOGLE_AUTH.init();
+
+        } catch (err) {
+          console.error('Error saving settings:', err);
+          alert('Failed to save settings.');
+        }
+      }
+    };
+
+    /**
+     * UI - Helpers for fullscreen API
+     */
+    const UI = {
+      toggleFullscreen() {
+        try {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+              console.warn('Fullscreen request rejected:', err);
+            });
+          } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            }
+          }
+        } catch (err) {
+          console.error('Fullscreen toggle error:', err);
+        }
+      }
+    };
+
+    // Auto-bootstrap on Window Load
+    window.onload = function() {
+      CONFIG.load();
+    };
+  </script>
+</body>
+</html>
